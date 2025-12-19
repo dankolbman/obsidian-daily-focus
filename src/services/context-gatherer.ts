@@ -198,7 +198,7 @@ export class ContextGatherer {
    */
   private identifyMeetingsNeedingAttention(
     meetings: MeetingNote[],
-    rawFiles: { date: string; modifiedAt: Date; filepath: string }[]
+    rawFiles: { date: string; createdAt: Date; modifiedAt: Date; filepath: string }[]
   ): MeetingNeedingAttention[] {
     const needingAttention: MeetingNeedingAttention[] = [];
     const today = getTodayDate();
@@ -219,13 +219,19 @@ export class ContextGatherer {
       // Check for today's meeting that hasn't been modified
       // (likely just created from template)
       if (meeting.date === today) {
-        const createdAt = rawFile.modifiedAt;
+        const createdAt = rawFile.createdAt;
         const now = new Date();
         const timeSinceCreation = now.getTime() - createdAt.getTime();
         const fiveMinutes = 5 * 60 * 1000;
 
-        // If the file is very new and has no action items, flag it
-        if (timeSinceCreation < fiveMinutes && meeting.actionItems.length === 0) {
+        // Heuristic: If the file is very new, and has not been edited since creation
+        // (mtime ~= ctime), and has no action items, flag it.
+        const timeBetweenCreateAndModify = Math.abs(
+          rawFile.modifiedAt.getTime() - rawFile.createdAt.getTime()
+        );
+        const notYetEdited = timeBetweenCreateAndModify < 2000;
+
+        if (timeSinceCreation < fiveMinutes && notYetEdited && meeting.actionItems.length === 0) {
           needingAttention.push({
             filepath: meeting.filepath,
             reason: "Created today, not yet updated with action items",

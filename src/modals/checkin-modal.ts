@@ -69,12 +69,13 @@ export class CheckinModal extends Modal {
 
     if (allTasks.length > 0) {
       const taskList = doneSection.createDiv({ cls: "daily-focus-checkin-tasks" });
-      for (const { task, section } of allTasks) {
+      for (const [idx, { task, section }] of allTasks.entries()) {
         const taskItem = taskList.createDiv({ cls: "daily-focus-checkin-task" });
 
+        const inputId = `daily-focus-checkin-task-${idx}`;
         const checkbox = taskItem.createEl("input", {
           type: "checkbox",
-          attr: { id: `task-${task.substring(0, 20)}` },
+          attr: { id: inputId },
         });
         checkbox.addEventListener("change", () => {
           if (checkbox.checked) {
@@ -85,7 +86,7 @@ export class CheckinModal extends Modal {
         });
 
         const label = taskItem.createEl("label", {
-          attr: { for: `task-${task.substring(0, 20)}` },
+          attr: { for: inputId },
         });
         label.createEl("span", { text: task, cls: "daily-focus-checkin-task-text" });
         label.createEl("span", { text: section, cls: "daily-focus-checkin-task-section" });

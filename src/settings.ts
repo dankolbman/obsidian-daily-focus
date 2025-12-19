@@ -10,6 +10,7 @@ export interface DailyFocusSettings {
   endOfDayTime: string;
   reminderInterval: number; // minutes between follow-up reminders
   lookbackDays: number;
+  skipDraftReview: boolean;
   // LLM settings
   llmProvider: LLMProvider;
   anthropicApiKey: string;
@@ -24,6 +25,8 @@ export interface DailyFocusSettings {
   jiraProjectKey: string;
   jiraBaseUrl: string;
   jiraCliPath: string;
+  // Delegation (Cursor) integration
+  enableDelegation: boolean;
 }
 
 export const DEFAULT_SETTINGS: DailyFocusSettings = {
@@ -34,6 +37,7 @@ export const DEFAULT_SETTINGS: DailyFocusSettings = {
   endOfDayTime: "16:00",
   reminderInterval: 10,
   lookbackDays: 7,
+  skipDraftReview: false,
   // LLM defaults
   llmProvider: "cli",
   anthropicApiKey: "",
@@ -48,6 +52,8 @@ export const DEFAULT_SETTINGS: DailyFocusSettings = {
   jiraProjectKey: "",
   jiraBaseUrl: "",
   jiraCliPath: "jira",
+  // Delegation defaults
+  enableDelegation: false,
 };
 
 export class DailyFocusSettingTab extends PluginSettingTab {
@@ -170,6 +176,21 @@ export class DailyFocusSettingTab extends PluginSettingTab {
             this.plugin.settings.lookbackDays = value;
             await this.plugin.saveSettings();
           })
+      );
+
+    // Workflow Section
+    containerEl.createEl("h3", { text: "Workflow" });
+
+    new Setting(containerEl)
+      .setName("Skip draft review")
+      .setDesc(
+        "When enabled, Daily Focus immediately writes today's markdown file and opens it for editing (skips the final review modal)."
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.skipDraftReview).onChange(async (value) => {
+          this.plugin.settings.skipDraftReview = value;
+          await this.plugin.saveSettings();
+        })
       );
 
     // LLM Section
@@ -374,5 +395,20 @@ export class DailyFocusSettingTab extends PluginSettingTab {
         2. Configure: <code>jira config</code> and follow prompts
       `;
     }
+
+    // Delegation (Cursor) Section
+    containerEl.createEl("h3", { text: "Delegation (Cursor)" });
+
+    new Setting(containerEl)
+      .setName("Enable delegation buttons")
+      .setDesc(
+        "Add PR-focused delegation deeplinks to your daily agenda (opens Cursor chat with a prefilled prompt)"
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.enableDelegation).onChange(async (value) => {
+          this.plugin.settings.enableDelegation = value;
+          await this.plugin.saveSettings();
+        })
+      );
   }
 }

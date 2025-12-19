@@ -537,6 +537,8 @@
   font-style: italic;
 }
 
+/* Delegate (Cursor) modal */
+
 /* Selector modal styles */
 .daily-focus-selector-options {
   display: flex;

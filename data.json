@@ -2,6 +2,9 @@
   "dailyFolder": "daily",
   "meetingsFolder": "meetings",
   "notificationTime": "10:00",
+  "checkinTime": "13:00",
+  "endOfDayTime": "16:00",
+  "reminderInterval": 10,
   "lookbackDays": 9,
   "llmProvider": "cli",
   "anthropicApiKey": "",
@@ -13,5 +16,9 @@
   "enableJira": false,
   "jiraProjectKey": "FSW",
   "jiraBaseUrl": "https://zipline.atlassian.net",
-  "jiraCliPath": "jira"
+  "jiraCliPath": "jira",
+  "enableDelegation": true,
+  "delegationFolder": "delegations",
+  "cursorCliPath": "cursor",
+  "autoOpenInCursor": false
 }

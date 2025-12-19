@@ -11,11 +11,14 @@ import { EODCheckinModal } from "./modals/eod-checkin-modal";
 import { CheckinSelectorModal } from "./modals/checkin-selector-modal";
 import {
   mergeDraftWithResolutions,
+  renderAgendaToMarkdown,
   renderStatusTables,
   parseMarkdownToAgenda,
 } from "./utils/markdown-utils";
 import { getTodayDate } from "./utils/date-utils";
-import { EnhancedContext } from "./types";
+import { EnhancedContext, GatheredContext, UnclearItem } from "./types";
+import { ConfirmOverwriteModal } from "./modals/draft-review-modal";
+import { parseDate } from "./utils/date-utils";
 
 /**
  * Get the Electron Notification class if available.
@@ -179,7 +182,9 @@ export default class DailyFocusPlugin extends Plugin {
       return;
     }
 
-    // Reset completion flags at midnight
+    // Reset completion flags for a new day (best-effort).
+    // Note: We also repeat this check inside the interval to handle midnight rollover
+    // without requiring a settings change / reschedule.
     const today = getTodayDate();
     if (this.notificationState.morning.lastNotified !== today) {
       this.notificationState.morning.completed = false;
@@ -201,6 +206,16 @@ export default class DailyFocusPlugin extends Plugin {
       const now = new Date();
       const todayStr = getTodayDate();
       const currentTime = now.getTime();
+
+      // Handle midnight rollover: if the day changed since the last notification,
+      // clear the "completed" flag so reminders work correctly the next day.
+      for (const key of ["morning", "midday", "eod"] as const) {
+        const state = this.notificationState[key];
+        if (state.lastNotified !== todayStr) {
+          state.completed = false;
+          state.lastReminderTime = 0;
+        }
+      }
 
       // Helper to check if it's time for initial or follow-up notification
       const checkNotification = (
@@ -280,6 +295,100 @@ export default class DailyFocusPlugin extends Plugin {
   private markCheckinComplete(type: "morning" | "midday" | "eod") {
     this.notificationState[type].completed = true;
     console.log(`[DailyFocus] ${type} check-in marked complete`);
+  }
+
+  private normalizeTaskText(text: string): string {
+    return text.trim().toLowerCase().replace(/\s+/g, " ");
+  }
+
+  private areConsecutiveDates(newerDateStr: string, olderDateStr: string): boolean {
+    const newer = parseDate(newerDateStr);
+    const older = parseDate(olderDateStr);
+    if (!newer || !older) return false;
+    const diffMs = newer.getTime() - older.getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    return Math.round(diffMs / dayMs) === 1;
+  }
+
+  /**
+   * Deterministically detect "unclear" carried-over tasks from recent agendas,
+   * matching the README rules:
+   * - Incomplete for 3+ consecutive days
+   * - In "Focus today" for 2+ consecutive days without completion
+   *
+   * We merge these with the LLM's own unclear item suggestions to ensure the UX
+   * consistently prompts the user when these thresholds are met.
+   */
+  private detectUnclearItems(context: GatheredContext): UnclearItem[] {
+    const flagged = new Set<string>();
+    const results: UnclearItem[] = [];
+
+    let prevDate: string | null = null;
+    type Streak = { count: number; startDate: string; text: string };
+    let streaks = new Map<string, Streak>();
+    let focusStreaks = new Map<string, Streak>();
+
+    for (const agenda of context.recentAgendas) {
+      if (prevDate && !this.areConsecutiveDates(prevDate, agenda.date)) {
+        // If there is a gap in days, we don't treat this as "consecutive".
+        streaks = new Map();
+        focusStreaks = new Map();
+      }
+
+      const dayTasks = new Map<string, string>();
+      const dayFocusTasks = new Map<string, string>();
+
+      for (const task of agenda.tasks) {
+        if (task.complete) continue;
+        const key = this.normalizeTaskText(task.text);
+        dayTasks.set(key, task.text);
+        if (task.section === "Focus today") {
+          dayFocusTasks.set(key, task.text);
+        }
+      }
+
+      const nextStreaks = new Map<string, Streak>();
+      for (const [key, text] of dayTasks.entries()) {
+        const prev = streaks.get(key);
+        const count = prev ? prev.count + 1 : 1;
+        const startDate = prev ? prev.startDate : agenda.date;
+        nextStreaks.set(key, { count, startDate, text });
+
+        if (count >= 3 && !flagged.has(key)) {
+          flagged.add(key);
+          results.push({
+            task: text,
+            source: `${this.settings.dailyFolder}/${startDate}.md`,
+            reason: `Incomplete for ${count} consecutive days`,
+            question: "Is this still active? If yes, what’s the next step (or who can own it)?",
+          });
+        }
+      }
+
+      const nextFocusStreaks = new Map<string, Streak>();
+      for (const [key, text] of dayFocusTasks.entries()) {
+        const prev = focusStreaks.get(key);
+        const count = prev ? prev.count + 1 : 1;
+        const startDate = prev ? prev.startDate : agenda.date;
+        nextFocusStreaks.set(key, { count, startDate, text });
+
+        if (count >= 2 && !flagged.has(key)) {
+          flagged.add(key);
+          results.push({
+            task: text,
+            source: `${this.settings.dailyFolder}/${startDate}.md`,
+            reason: `In "Focus today" for ${count} consecutive days without completion`,
+            question: "Is this still active? If yes, what’s the next step (or who can own it)?",
+          });
+        }
+      }
+
+      streaks = nextStreaks;
+      focusStreaks = nextFocusStreaks;
+      prevDate = agenda.date;
+    }
+
+    return results;
   }
 
   /**
@@ -409,30 +518,8 @@ export default class DailyFocusPlugin extends Plugin {
           userFocusInput,
         };
 
-        // Fetch GitHub and Jira in parallel with status updates
-        const fetchPromises: Promise<void>[] = [];
-
-        if (this.settings.enableGitHub) {
-          updateStatus("🐙 Fetching GitHub PRs...");
-          fetchPromises.push(
-            this.contextGatherer
-              .gatherEnhancedContext(
-                this.settings.dailyFolder,
-                this.settings.meetingsFolder,
-                this.settings.lookbackDays
-              )
-              .then((enhanced) => {
-                context.pullRequests = enhanced.pullRequests;
-                context.jiraTickets = enhanced.jiraTickets;
-                context.reconciliation = enhanced.reconciliation;
-              })
-              .catch((error) => {
-                console.error("[DailyFocus] Integration fetch failed:", error);
-              })
-          );
-        }
-
-        if (fetchPromises.length > 0) {
+        // Fetch GitHub and/or Jira if enabled.
+        if (this.settings.enableGitHub || this.settings.enableJira) {
           if (this.settings.enableGitHub && this.settings.enableJira) {
             updateStatus("🔄 Fetching GitHub & Jira...");
           } else if (this.settings.enableGitHub) {
@@ -440,7 +527,19 @@ export default class DailyFocusPlugin extends Plugin {
           } else if (this.settings.enableJira) {
             updateStatus("🎫 Fetching Jira tickets...");
           }
-          await Promise.all(fetchPromises);
+
+          try {
+            const enhanced = await this.contextGatherer.gatherEnhancedContext(
+              this.settings.dailyFolder,
+              this.settings.meetingsFolder,
+              this.settings.lookbackDays
+            );
+            context.pullRequests = enhanced.pullRequests;
+            context.jiraTickets = enhanced.jiraTickets;
+            context.reconciliation = enhanced.reconciliation;
+          } catch (error) {
+            console.error("[DailyFocus] Integration fetch failed:", error);
+          }
         }
       } catch (error) {
         console.error("[DailyFocus] Failed to gather context:", error);
@@ -474,12 +573,20 @@ export default class DailyFocusPlugin extends Plugin {
         const meetingResult = await meetingModal.prompt();
 
         if (meetingResult === "continue") {
-          // Re-gather context in case user updated meeting notes
-          const updatedContext = await this.contextGatherer.gatherEnhancedContext(
-            this.settings.dailyFolder,
-            this.settings.meetingsFolder,
-            this.settings.lookbackDays
-          );
+          // Re-gather context in case user updated meeting notes.
+          // If integrations are disabled, don't waste time trying to fetch them.
+          const updatedContext =
+            this.settings.enableGitHub || this.settings.enableJira
+              ? await this.contextGatherer.gatherEnhancedContext(
+                  this.settings.dailyFolder,
+                  this.settings.meetingsFolder,
+                  this.settings.lookbackDays
+                )
+              : await this.contextGatherer.gatherContext(
+                  this.settings.dailyFolder,
+                  this.settings.meetingsFolder,
+                  this.settings.lookbackDays
+                );
           Object.assign(context, updatedContext);
         }
         // If "skip", continue with existing context
@@ -506,6 +613,21 @@ export default class DailyFocusPlugin extends Plugin {
           unclearItems: [],
           suggestions: [],
         };
+      }
+
+      // Deterministic unclear detection (carry-over thresholds) to match README behavior.
+      const deterministicUnclear = this.detectUnclearItems(context);
+      if (deterministicUnclear.length > 0) {
+        const existing = new Set(
+          triageResponse.unclearItems.map((u: UnclearItem) => this.normalizeTaskText(u.task))
+        );
+        for (const item of deterministicUnclear) {
+          const key = this.normalizeTaskText(item.task);
+          if (!existing.has(key)) {
+            triageResponse.unclearItems.push(item);
+            existing.add(key);
+          }
+        }
       }
 
       // Step 5: Status Update Prompts (if there are unclear items)
@@ -538,31 +660,57 @@ export default class DailyFocusPlugin extends Plugin {
       }
 
       // Step 6: Draft Review and Save
-      const reviewModal = new DraftReviewModal(
-        this.app,
-        finalDraft,
-        allSuggestions,
-        this.settings.dailyFolder
-      );
-      const reviewResult = await reviewModal.prompt();
+      const filePath = `${this.settings.dailyFolder}/${getTodayDate()}.md`;
 
-      if (reviewResult.action === "cancel") {
-        new Notice("Daily Focus generation cancelled.");
-        return;
+      // Option: skip the final review modal and drop the user into the file directly.
+      // We still confirm overwrite if the file already exists.
+      let finalContent: string;
+      if (this.settings.skipDraftReview) {
+        const existingFile = this.app.vault.getAbstractFileByPath(filePath);
+        if (existingFile instanceof TFile) {
+          const confirmModal = new ConfirmOverwriteModal(this.app, filePath);
+          const confirmed = await confirmModal.prompt();
+          if (!confirmed) {
+            new Notice("Daily Focus generation cancelled.");
+            return;
+          }
+        }
+
+        finalContent = renderAgendaToMarkdown(finalDraft);
+        if (allSuggestions.length > 0) {
+          finalContent += "## Suggestions\n";
+          for (const suggestion of allSuggestions) {
+            finalContent += `- ${suggestion}\n`;
+          }
+          finalContent += "\n";
+        }
+      } else {
+        const reviewModal = new DraftReviewModal(
+          this.app,
+          finalDraft,
+          allSuggestions,
+          this.settings.dailyFolder
+        );
+        const reviewResult = await reviewModal.prompt();
+
+        if (reviewResult.action === "cancel") {
+          new Notice("Daily Focus generation cancelled.");
+          return;
+        }
+
+        finalContent = reviewResult.content;
       }
 
-      // Append status tables if we have GitHub/Jira data
-      let finalContent = reviewResult.content;
       if (context.pullRequests.length > 0 || context.jiraTickets.length > 0) {
         finalContent += renderStatusTables(
           context.pullRequests,
           context.jiraTickets,
-          context.reconciliation
+          context.reconciliation,
+          { includeDelegationSuggestions: this.settings.enableDelegation }
         );
       }
 
       // Save the file
-      const filePath = `${this.settings.dailyFolder}/${getTodayDate()}.md`;
       await this.saveAgendaFile(filePath, finalContent);
 
       // Mark morning check-in complete (stops reminders)
@@ -642,8 +790,9 @@ export default class DailyFocusPlugin extends Plugin {
           checkinSection += `\n### Blockers\n${result.blockers}\n`;
         }
 
-        // Add before any status tables (GitHub/Jira) or at the end
-        const statusTableIndex = updatedContent.indexOf("\n## GitHub PRs");
+        // Add before any status tables (GitHub/Jira) or at the end.
+        // Status tables are appended with a horizontal rule ("---") prefix.
+        const statusTableIndex = updatedContent.indexOf("\n---\n");
         if (statusTableIndex !== -1) {
           updatedContent =
             updatedContent.slice(0, statusTableIndex) +
@@ -735,8 +884,9 @@ export default class DailyFocusPlugin extends Plugin {
           eodSection += `\n### For tomorrow\n${result.forTomorrow}\n`;
         }
 
-        // Add before any status tables or at the end
-        const statusTableIndex = updatedContent.indexOf("\n## GitHub PRs");
+        // Add before any status tables (GitHub/Jira) or at the end.
+        // Status tables are appended with a horizontal rule ("---") prefix.
+        const statusTableIndex = updatedContent.indexOf("\n---\n");
         if (statusTableIndex !== -1) {
           updatedContent =
             updatedContent.slice(0, statusTableIndex) +

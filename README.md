@@ -9,6 +9,7 @@ An Obsidian plugin that helps you plan your workday by analyzing recent agendas 
 - **Meeting Note Prompts**: Reminds you to add action items to recent meeting notes
 - **Status Updates**: Helps you resolve stale or unclear tasks
 - **Draft Review**: Preview and edit the generated agenda before saving
+- **Delegate to Cursor (Optional)**: One-click deeplink to open Cursor chat with a prefilled agent prompt for any task
 
 ## Installation
 
@@ -17,6 +18,8 @@ An Obsidian plugin that helps you plan your workday by analyzing recent agendas 
 1. Download the latest release
 2. Extract to your vault's `.obsidian/plugins/daily-focus/` folder
 3. Enable the plugin in Obsidian settings
+
+**Desktop-only:** This plugin shells out to local CLIs (Claude CLI / `gh` / `jira`) and attempts to use Electron notifications, so it is intended for Obsidian Desktop.
 
 ### Development
 
@@ -103,6 +106,13 @@ The plugin can optionally pull context from GitHub and Jira using their respecti
 - **Base URL**: Your Jira instance URL
 - **jira CLI path**: Path to the `jira` (go-jira) executable (default: `jira`)
 
+### Delegation (Cursor)
+
+If you use Cursor, the plugin can add a **Next** column to the **Open Pull Requests** table with a single recommended `[Delegate]` deeplink per PR.
+
+- **Enable delegation buttons**: Adds one PR-focused delegation deeplink per PR (opens Cursor chat with a prefilled prompt)
+- The recommended action is chosen based on PR state (e.g., CI failing → investigate CI; not approved → respond/request review; approved → merge readiness).
+
 ## File Formats
 
 ### Daily Agenda (`daily/YYYY-MM-DD.md`)
@@ -114,27 +124,25 @@ The plugin can optionally pull context from GitHub and Jira using their respecti
 _1-3 things that would make today successful_
 - [ ] Important task [PROJ-123]
 
-## Delegate
-_Who can take this? Be specific._
-- [ ] Task → Person Name
-
 ## Quick wins
-_Small tasks you can knock out between focused work_
+_Small tasks, delegations, and quick actions_
 - [ ] Quick task
+- [ ] Delegate this → Person Name
 
-## Blocked / Waiting
-_Things you can't move forward right now_
-- [ ] Blocked task — waiting on X
-
-## Do later
-_Intentionally deferred—revisit weekly_
+## Later
+_Deferred items to revisit_
 - [ ] Deferred task — reason
-
-## Notes
-_Anything that came up during the day_
 ```
 
 ### Meeting Note (`meetings/YYYY-MM-DD - Title.md`)
+
+Meeting note filenames are flexible as long as they start with a date. These are all supported:
+
+- `meetings/YYYY-MM-DD - Title.md`
+- `meetings/YYYY-MM-DD — Title.md` (en/em dash)
+- `meetings/YYYY-MM-DD: Title.md`
+- `meetings/YYYY-MM-DD Title.md` (space separator)
+- `meetings/YYYY-MM-DD.md` (no title)
 
 ```markdown
 # Meeting — 2024-12-17 — Team Sync
@@ -158,6 +166,7 @@ Discussion points...
 3. **AI Analysis**: The plugin sends your context to Claude for analysis
 4. **Status Updates**: Review and resolve any unclear/stale tasks
 5. **Draft Review**: Edit the generated agenda and save
+6. **Delegate (optional)**: During check-ins, click **Delegate** next to a task to open Cursor chat with a prefilled agent prompt (via deeplink)
 
 ## Task Detection
 
@@ -173,6 +182,8 @@ The plugin automatically detects:
 Tasks are flagged as "unclear" when:
 - Carried over for 3+ consecutive days without completion
 - In "Focus today" section but not completed for 2+ days
+
+Note: The plugin enforces these thresholds deterministically and may also include additional unclear items suggested by the LLM.
 
 ## Privacy
 

@@ -135,6 +135,14 @@ export class LLMService {
     const today = getTodayDate();
     let prompt = `Today's date: ${today}\n\n`;
 
+    // Always include user's focus if available (even when integrations are disabled).
+    const focusInput = (context as EnhancedContext).userFocusInput;
+    if (focusInput && focusInput.trim()) {
+      prompt += "## User's focus for today:\n\n";
+      prompt += focusInput.trim() + "\n\n";
+      console.log("[DailyFocus] - User focus input provided");
+    }
+
     // Debug logging for context
     console.log("[DailyFocus] Building prompt with context:");
     console.log("[DailyFocus] - Recent agendas:", context.recentAgendas.length);
@@ -180,51 +188,48 @@ export class LLMService {
       }
     }
 
-    // Add GitHub and Jira context if available
+    // Add GitHub and Jira context if available (and non-empty). This avoids adding noise
+    // like "_No open PRs_" when the user has integrations disabled.
     if (this.isEnhancedContext(context)) {
-      // Add user's focus input if provided
-      if (context.userFocusInput && context.userFocusInput.trim()) {
-        prompt += "## User's focus for today:\n\n";
-        prompt += context.userFocusInput.trim() + "\n\n";
-        console.log("[DailyFocus] - User focus input provided");
-      }
+      const hasAnyIntegrationData =
+        (context.pullRequests?.length ?? 0) > 0 ||
+        (context.jiraTickets?.length ?? 0) > 0 ||
+        (context.reconciliation?.warnings?.length ?? 0) > 0;
 
       console.log("[DailyFocus] - Pull requests:", context.pullRequests.length);
       console.log("[DailyFocus] - Jira tickets:", context.jiraTickets.length);
 
-      // Add open PRs
-      prompt += "## Open Pull Requests:\n\n";
-      if (context.pullRequests.length === 0) {
-        prompt += "_No open PRs._\n\n";
-      } else {
+      if (hasAnyIntegrationData) {
+        // Add open PRs
+        if (context.pullRequests.length > 0) {
+          prompt += "## Open Pull Requests:\n\n";
+        }
         for (const pr of context.pullRequests) {
           const hilStatus =
             pr.hilChecksPassing === null ? "pending" : pr.hilChecksPassing ? "passing" : "failing";
           const approval = pr.hasApproval ? "approved" : "needs review";
           prompt += `- PR #${pr.number}: ${pr.title} (HIL: ${hilStatus}, ${approval})\n`;
         }
-        prompt += "\n";
-      }
+        if (context.pullRequests.length > 0) prompt += "\n";
 
-      // Add Jira tickets
-      prompt += "## In-Progress Jira Tickets:\n\n";
-      if (context.jiraTickets.length === 0) {
-        prompt += "_No in-progress tickets._\n\n";
-      } else {
+        // Add Jira tickets
+        if (context.jiraTickets.length > 0) {
+          prompt += "## In-Progress Jira Tickets:\n\n";
+        }
         for (const ticket of context.jiraTickets) {
           const prLink = ticket.linkedPRNumber ? `PR #${ticket.linkedPRNumber}` : "no PR";
           prompt += `- [${ticket.key}] ${ticket.summary} (${ticket.status}, ${prLink})\n`;
         }
-        prompt += "\n";
-      }
+        if (context.jiraTickets.length > 0) prompt += "\n";
 
-      // Add reconciliation warnings
-      if (context.reconciliation.warnings.length > 0) {
-        prompt += "## Reconciliation Warnings:\n\n";
-        for (const warning of context.reconciliation.warnings) {
-          prompt += `- ⚠️ ${warning.message}\n`;
+        // Add reconciliation warnings
+        if (context.reconciliation.warnings.length > 0) {
+          prompt += "## Reconciliation Warnings:\n\n";
+          for (const warning of context.reconciliation.warnings) {
+            prompt += `- ⚠️ ${warning.message}\n`;
+          }
+          prompt += "\n";
         }
-        prompt += "\n";
       }
     }
 
@@ -269,7 +274,7 @@ export class LLMService {
     try {
       const resolvedPath = execSync(`which ${configPath}`, {
         encoding: "utf-8",
-        shell: true,
+        shell: "/bin/bash",
       }).trim();
 
       if (resolvedPath) {
@@ -292,7 +297,7 @@ export class LLMService {
     try {
       const nvmVersions = execSync(`ls "${nvmDir}" 2>/dev/null || true`, {
         encoding: "utf-8",
-        shell: true,
+        shell: "/bin/bash",
       })
         .trim()
         .split("\n")
@@ -307,7 +312,7 @@ export class LLMService {
 
     for (const path of commonPaths) {
       try {
-        execSync(`test -x "${path}"`, { shell: true });
+        execSync(`test -x "${path}"`, { shell: "/bin/bash" });
         return path;
       } catch {
         // Path doesn't exist or isn't executable, try next

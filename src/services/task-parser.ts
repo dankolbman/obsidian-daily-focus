@@ -6,10 +6,14 @@ import { Task, ActionItem, AgendaSection, AGENDA_SECTIONS } from "../types";
 const PATTERNS = {
   /** Matches a task line: - [ ] or - [x] followed by text */
   task: /^-\s*\[([ xX])\]\s*(.+)$/,
+  /** Matches a bullet list line (no checkbox): - item, * item, + item */
+  bullet: /^[-*+]\s+(.+)$/,
   /** Matches a Jira ID: [ABC-123] */
   jiraId: /\[([A-Z]+-\d+)\]/,
-  /** Matches a level 2 heading: ## Title */
-  heading: /^##\s+(.+)$/,
+  /** Matches a markdown heading (levels 1-6): # Title, ## Title, ... */
+  heading: /^#{1,6}\s+(.+)$/,
+  /** Matches a line that is only bold text: **Title** */
+  boldLine: /^\*\*(.+)\*\*\s*$/,
 };
 
 /**
@@ -66,11 +70,60 @@ export class TaskParser {
   }
 
   /**
+   * Normalize a section title so we can compare it robustly.
+   */
+  private normalizeSectionTitle(sectionTitle: string): string {
+    return (
+      sectionTitle
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        // strip common trailing punctuation / delimiters
+        .replace(/[\s:：\-–—]+$/g, "")
+        .trim()
+    );
+  }
+
+  /**
    * Check if a section title is an action items section.
    */
   private isActionItemSection(sectionTitle: string): boolean {
-    const normalized = sectionTitle.trim().toLowerCase();
-    return ACTION_ITEM_SECTIONS.some((section) => normalized === section);
+    // Be forgiving of minor formatting differences:
+    // - case differences ("Suggested Next Steps")
+    // - trailing punctuation ("Suggested next steps:")
+    // - extra whitespace ("Suggested   next   steps")
+    const normalized = this.normalizeSectionTitle(sectionTitle);
+
+    return ACTION_ITEM_SECTIONS.some((section) => {
+      // Accept exact match or "section: ..." style headings.
+      return normalized === section || normalized.startsWith(section + " ");
+    });
+  }
+
+  /**
+   * Extract a "section title" from a line, supporting headings and common non-heading patterns.
+   *
+   * Important: For plain (non-heading) markers, we ONLY treat the line as a section marker
+   * if it looks like an action-items heading. This avoids accidentally exiting the section
+   * when we encounter normal prose lines.
+   */
+  private extractSectionTitleFromLine(line: string): string | null {
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+
+    // Standard markdown heading (#..######)
+    const headingMatch = trimmed.match(PATTERNS.heading);
+    if (headingMatch) return headingMatch[1].trim();
+
+    // Bold-only line: **Suggested next steps**
+    const boldMatch = trimmed.match(PATTERNS.boldLine);
+    if (boldMatch) return boldMatch[1].trim();
+
+    // Plain standalone marker like "Suggested next steps:" (no markdown heading)
+    // Only accept if it matches our action-item section names.
+    if (this.isActionItemSection(trimmed)) return trimmed;
+
+    return null;
   }
 
   /**
@@ -83,10 +136,9 @@ export class TaskParser {
     let inActionItemsSection = false;
 
     for (const line of lines) {
-      // Check for section heading
-      const headingMatch = line.match(PATTERNS.heading);
-      if (headingMatch) {
-        const sectionTitle = headingMatch[1].trim();
+      // Check for section marker (heading, bold-only line, or plain standalone marker)
+      const sectionTitle = this.extractSectionTitleFromLine(line);
+      if (sectionTitle) {
         inActionItemsSection = this.isActionItemSection(sectionTitle);
         continue;
       }
@@ -96,6 +148,19 @@ export class TaskParser {
         const taskMatch = line.match(PATTERNS.task);
         if (taskMatch) {
           const [, , text] = taskMatch;
+          const jiraMatch = text.match(PATTERNS.jiraId);
+
+          actionItems.push({
+            text: text.trim(),
+            jiraId: jiraMatch ? jiraMatch[1] : null,
+          });
+          continue;
+        }
+
+        // Also accept plain bullets inside an action-items section (common in notes)
+        const bulletMatch = line.match(PATTERNS.bullet);
+        if (bulletMatch) {
+          const [, text] = bulletMatch;
           const jiraMatch = text.match(PATTERNS.jiraId);
 
           actionItems.push({
@@ -116,13 +181,8 @@ export class TaskParser {
   hasActionItemsSection(content: string): boolean {
     const lines = content.split("\n");
     for (const line of lines) {
-      const headingMatch = line.match(PATTERNS.heading);
-      if (headingMatch) {
-        const sectionTitle = headingMatch[1].trim();
-        if (this.isActionItemSection(sectionTitle)) {
-          return true;
-        }
-      }
+      const sectionTitle = this.extractSectionTitleFromLine(line);
+      if (sectionTitle && this.isActionItemSection(sectionTitle)) return true;
     }
     return false;
   }

@@ -161,6 +161,8 @@ export interface PullRequest {
   title: string;
   /** URL to the PR */
   url: string;
+  /** Head branch name (e.g., "dank/FSW-1234-fix-thing") */
+  branch: string | null;
   /** Jira ID extracted from title (e.g., FSW-1234) */
   jiraId: string | null;
   /** Whether required_hil_checks CI is passing */

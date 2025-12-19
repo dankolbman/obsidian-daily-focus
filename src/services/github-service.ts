@@ -43,7 +43,7 @@ export class GitHubService {
     try {
       const resolvedPath = execSync(`which ${configPath}`, {
         encoding: "utf-8",
-        shell: true,
+        shell: "/bin/bash",
       }).trim();
 
       if (resolvedPath) {
@@ -62,7 +62,7 @@ export class GitHubService {
 
     for (const path of commonPaths) {
       try {
-        execSync(`test -x "${path}"`, { shell: true });
+        execSync(`test -x "${path}"`, { shell: "/bin/bash" });
         return path;
       } catch {
         // Path doesn't exist or isn't executable, try next
@@ -83,7 +83,7 @@ export class GitHubService {
     try {
       const output = execSync(cmd, {
         encoding: "utf-8",
-        shell: true,
+        shell: "/bin/bash",
         timeout: 30000, // 30 second timeout
       });
       return output;
@@ -97,7 +97,9 @@ export class GitHubService {
    * Extract Jira ID from PR title (e.g., "[FSW-1234]" or "FSW-1234").
    */
   private extractJiraId(title: string): string | null {
-    const match = title.match(/\[?(FSW-\d+)\]?/i);
+    // Keep this generic so the plugin works across Jira projects, not just a single key.
+    // Prefer bracketed IDs but also accept plain "ABC-1234".
+    const match = title.match(/\[?([A-Z][A-Z0-9]+-\d+)\]?/i);
     return match ? match[1].toUpperCase() : null;
   }
 
@@ -119,7 +121,7 @@ export class GitHubService {
         "--state",
         "open",
         "--json",
-        "number,title,url,state",
+        "number,title,url,state,headRefName",
       ]);
 
       const prList = JSON.parse(listOutput) as Array<{
@@ -127,6 +129,7 @@ export class GitHubService {
         title: string;
         url: string;
         state: string;
+        headRefName?: string;
       }>;
 
       console.log("[DailyFocus] Found", prList.length, "open PRs");
@@ -194,6 +197,7 @@ export class GitHubService {
             number: pr.number,
             title: pr.title,
             url: pr.url,
+            branch: pr.headRefName ?? null,
             jiraId: this.extractJiraId(pr.title),
             hilChecksPassing,
             hasApproval,
@@ -207,6 +211,7 @@ export class GitHubService {
             number: pr.number,
             title: pr.title,
             url: pr.url,
+            branch: pr.headRefName ?? null,
             jiraId: this.extractJiraId(pr.title),
             hilChecksPassing: null,
             hasApproval: false,

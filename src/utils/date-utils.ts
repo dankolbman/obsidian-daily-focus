@@ -52,11 +52,20 @@ export function extractDateFromDailyFilename(filename: string): string | null {
 export function extractDateAndTitleFromMeetingFilename(
   filename: string
 ): { date: string; title: string } | null {
-  const match = filename.match(/^(\d{4}-\d{2}-\d{2}) - (.+)\.md$/);
+  // Accept a few common separators:
+  // - "YYYY-MM-DD - Title.md" (original)
+  // - "YYYY-MM-DD — Title.md" / "YYYY-MM-DD – Title.md"
+  // - "YYYY-MM-DD: Title.md"
+  // - "YYYY-MM-DD Title.md" (no explicit separator)
+  // - "YYYY-MM-DD.md" (no title)
+  const match = filename.match(/^(\d{4}-\d{2}-\d{2})(?:\s*(?:-{1,3}|–|—|:)\s*(.+)|\s+(.+))?\.md$/);
   if (!match) {
     return null;
   }
-  return { date: match[1], title: match[2] };
+
+  const titleRaw = match[2] ?? match[3] ?? "";
+  const title = titleRaw.trim() || "Untitled meeting";
+  return { date: match[1], title };
 }
 
 /**

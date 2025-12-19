@@ -20,6 +20,7 @@ export interface RawMeetingFile {
   title: string;
   content: string;
   filepath: string;
+  createdAt: Date;
   modifiedAt: Date;
   file: TFile;
 }
@@ -35,17 +36,42 @@ export class VaultReader {
   }
 
   /**
+   * Normalize a user-provided folder path (relative to vault root).
+   * - trims whitespace
+   * - removes leading/trailing slashes
+   * - collapses multiple slashes
+   */
+  private normalizeFolderPath(folderPath: string): string {
+    return folderPath
+      .trim()
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "")
+      .replace(/\/{2,}/g, "/");
+  }
+
+  /**
    * Get or create a folder in the vault.
    */
   async ensureFolder(folderPath: string): Promise<TFolder> {
-    const existing = this.app.vault.getAbstractFileByPath(folderPath);
+    const normalized = this.normalizeFolderPath(folderPath);
+    if (!normalized) {
+      // Empty path means vault root; nothing to ensure/create.
+      // (Also avoids creating a folder with an empty name.)
+      const root = this.app.vault.getRoot();
+      if (!(root instanceof TFolder)) {
+        throw new Error("Failed to resolve vault root folder");
+      }
+      return root;
+    }
+
+    const existing = this.app.vault.getAbstractFileByPath(normalized);
     if (existing instanceof TFolder) {
       return existing;
     }
-    await this.app.vault.createFolder(folderPath);
-    const created = this.app.vault.getAbstractFileByPath(folderPath);
+    await this.app.vault.createFolder(normalized);
+    const created = this.app.vault.getAbstractFileByPath(normalized);
     if (!(created instanceof TFolder)) {
-      throw new Error(`Failed to create folder: ${folderPath}`);
+      throw new Error(`Failed to create folder: ${normalized}`);
     }
     return created;
   }
@@ -55,14 +81,15 @@ export class VaultReader {
    * Files are sorted by date, most recent first.
    */
   async readDailyFiles(dailyFolder: string, lookbackDays: number): Promise<RawDailyFile[]> {
-    await this.ensureFolder(dailyFolder);
+    const normalizedDailyFolder = this.normalizeFolderPath(dailyFolder);
+    await this.ensureFolder(normalizedDailyFolder);
 
     const files = this.app.vault.getMarkdownFiles();
     const dailyFiles: RawDailyFile[] = [];
 
     for (const file of files) {
       // Check if file is in the daily folder
-      if (!file.path.startsWith(dailyFolder + "/")) {
+      if (normalizedDailyFolder && !file.path.startsWith(normalizedDailyFolder + "/")) {
         continue;
       }
 
@@ -91,14 +118,15 @@ export class VaultReader {
    * Files are sorted by date, most recent first.
    */
   async readMeetingFiles(meetingsFolder: string, lookbackDays: number): Promise<RawMeetingFile[]> {
-    await this.ensureFolder(meetingsFolder);
+    const normalizedMeetingsFolder = this.normalizeFolderPath(meetingsFolder);
+    await this.ensureFolder(normalizedMeetingsFolder);
 
     const files = this.app.vault.getMarkdownFiles();
     const meetingFiles: RawMeetingFile[] = [];
 
     for (const file of files) {
       // Check if file is in the meetings folder
-      if (!file.path.startsWith(meetingsFolder + "/")) {
+      if (normalizedMeetingsFolder && !file.path.startsWith(normalizedMeetingsFolder + "/")) {
         continue;
       }
 
@@ -119,6 +147,7 @@ export class VaultReader {
         title: parsed.title,
         content,
         filepath: file.path,
+        createdAt: new Date(file.stat.ctime),
         modifiedAt: new Date(file.stat.mtime),
         file,
       });

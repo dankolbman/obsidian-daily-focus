@@ -1,5 +1,6 @@
 import { DraftAgenda, ResolvedItem, PullRequest, JiraTicket, ReconciliationResult } from "../types";
 import { getTodayDate } from "./date-utils";
+import { generateCursorPromptDeeplink } from "./cursor-deeplink";
 
 /**
  * Merge resolved items into the draft agenda.
@@ -92,13 +93,106 @@ export function renderAgendaToMarkdown(draft: DraftAgenda, date?: string): strin
   return markdown;
 }
 
+function cursorLinkOrLabel(prompt: string): { link: string | null; tooLong: boolean } {
+  const link = generateCursorPromptDeeplink(prompt);
+  if (link.length > 8000) return { link: null, tooLong: true };
+  return { link, tooLong: false };
+}
+
+function promptForPRAction(args: {
+  prNumber: number;
+  prTitle: string;
+  prUrl: string;
+  prBranch: string | null;
+  action: "review" | "respond" | "ci" | "merge";
+}): string {
+  const base = `You are a senior engineer working in Cursor.
+
+PR:
+- #${args.prNumber}: ${args.prTitle}
+- URL: ${args.prUrl}
+${args.prBranch ? `- Branch: ${args.prBranch}\n- Checkout: git checkout ${args.prBranch}\n` : ""}
+
+`;
+
+  switch (args.action) {
+    case "review":
+      return (
+        base +
+        `Task:
+- Do a thorough PR review. Focus on correctness, safety, tests, edge cases, and maintainability.
+
+Output:
+- A short summary
+- Required changes (blockers)
+- Optional suggestions (nits)
+`
+      );
+    case "respond":
+      return (
+        base +
+        `Task:
+- Read existing review comments on this PR and draft clear responses and follow-ups.
+
+Output:
+- A bullet list of responses (by topic) and any follow-up actions to take
+`
+      );
+    case "ci":
+      return (
+        base +
+        `Task:
+- Investigate the failing CI checks for this PR and propose a fix.
+
+Output:
+- What failed and why
+- Proposed fix steps (and code changes if needed)
+`
+      );
+    case "merge":
+      return (
+        base +
+        `Task:
+- Prepare this PR for merge: verify it’s ready, confirm checks/approvals, and identify any last risks.
+
+Output:
+- Merge readiness checklist + any remaining blockers
+`
+      );
+  }
+}
+
+function recommendedPRAction(pr: PullRequest): {
+  action: "review" | "respond" | "ci" | "merge";
+  label: string;
+} {
+  // Highest urgency: failing CI
+  if (pr.hilChecksPassing === false) {
+    return { action: "ci", label: "Investigate CI failure" };
+  }
+
+  // If changes requested, respond/follow up
+  if (String(pr.reviewState).toUpperCase() === "CHANGES_REQUESTED") {
+    return { action: "respond", label: "Respond to requested changes" };
+  }
+
+  // If not approved yet, focus on getting it reviewed / addressing feedback
+  if (!pr.hasApproval) {
+    return { action: "respond", label: "Respond / request review" };
+  }
+
+  // Otherwise, it's likely ready to merge / double-check readiness
+  return { action: "merge", label: "Merge readiness check" };
+}
+
 /**
  * Render PR and ticket status tables to append to the agenda.
  */
 export function renderStatusTables(
   pullRequests: PullRequest[],
   tickets: JiraTicket[],
-  reconciliation: ReconciliationResult
+  reconciliation: ReconciliationResult,
+  opts?: { includeDelegationSuggestions?: boolean }
 ): string {
   let markdown = "---\n\n";
 
@@ -107,14 +201,40 @@ export function renderStatusTables(
   if (pullRequests.length === 0) {
     markdown += "_No open PRs_\n\n";
   } else {
-    markdown += "| PR | Title | HIL Checks | Approved |\n";
-    markdown += "|:---|:------|:-----------|:---------|\n";
+    const includeDelegate = !!opts?.includeDelegationSuggestions;
+    if (includeDelegate) {
+      markdown += "| PR | Title | HIL Checks | Approved | Next |\n";
+      markdown += "|:---|:------|:-----------|:---------|:-----|\n";
+    } else {
+      markdown += "| PR | Title | HIL Checks | Approved |\n";
+      markdown += "|:---|:------|:-----------|:---------|\n";
+    }
     for (const pr of pullRequests) {
       const hilStatus =
         pr.hilChecksPassing === null ? "—" : pr.hilChecksPassing ? "✓ Passing" : "✗ Failing";
       const approvalStatus = pr.hasApproval ? "✓ Yes" : "✗ No";
       const jiraTag = pr.jiraId ? `[${pr.jiraId}]` : "";
-      markdown += `| [#${pr.number}](${pr.url}) | ${jiraTag} ${pr.title.replace(pr.jiraId || "", "").trim()} | ${hilStatus} | ${approvalStatus} |\n`;
+
+      const title = `${jiraTag} ${pr.title.replace(pr.jiraId || "", "").trim()}`.trim();
+
+      if (includeDelegate) {
+        const rec = recommendedPRAction(pr);
+        const prompt = promptForPRAction({
+          prNumber: pr.number,
+          prTitle: pr.title,
+          prUrl: pr.url,
+          prBranch: pr.branch,
+          action: rec.action,
+        });
+        const link = cursorLinkOrLabel(prompt);
+        const nextCell = link.link
+          ? `[Delegate](${link.link}) ${rec.label}`
+          : `**[Delegate]** ${rec.label}`;
+
+        markdown += `| [#${pr.number}](${pr.url}) | ${title} | ${hilStatus} | ${approvalStatus} | ${nextCell} |\n`;
+      } else {
+        markdown += `| [#${pr.number}](${pr.url}) | ${title} | ${hilStatus} | ${approvalStatus} |\n`;
+      }
     }
     markdown += "\n";
   }
@@ -189,8 +309,12 @@ export function parseMarkdownToAgenda(markdown: string): DraftAgenda {
     if (currentSection) {
       const taskMatch = line.match(/^-\s*\[([ xX])\]\s*(.+)$/);
       if (taskMatch) {
-        const [, , text] = taskMatch;
-        agenda[currentSection].push(text.trim());
+        const [, checkbox, text] = taskMatch;
+        const complete = checkbox.toLowerCase() === "x";
+        // For check-in flows, we only want *incomplete* tasks as active items.
+        if (!complete) {
+          agenda[currentSection].push(text.trim());
+        }
       }
     }
   }
