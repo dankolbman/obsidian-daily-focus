@@ -1,0 +1,538 @@
+/* Daily Focus Plugin Styles */
+
+/* Base modal styling */
+.daily-focus-modal {
+  padding: 1rem;
+}
+
+.daily-focus-modal h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.daily-focus-modal h3 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.daily-focus-modal h4 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+
+/* Button container */
+.daily-focus-button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Primary button */
+.daily-focus-button-primary {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.daily-focus-button-primary:hover {
+  background-color: var(--interactive-accent-hover);
+}
+
+/* Secondary button */
+.daily-focus-button-secondary {
+  background-color: var(--background-modifier-border);
+  color: var(--text-normal);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.daily-focus-button-secondary:hover {
+  background-color: var(--background-modifier-border-hover);
+}
+
+/* Danger button variant */
+.daily-focus-button-danger {
+  background-color: var(--text-error);
+}
+
+.daily-focus-button-danger:hover {
+  filter: brightness(1.1);
+}
+
+/* Meeting list styles */
+.daily-focus-meeting-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.daily-focus-meeting-list li {
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: var(--background-secondary);
+  border-radius: 4px;
+}
+
+.daily-focus-meeting-link {
+  color: var(--text-accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.daily-focus-meeting-link:hover {
+  color: var(--text-accent-hover);
+}
+
+.daily-focus-meeting-reason {
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.daily-focus-instructions {
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 1rem;
+}
+
+/* Status update modal styles */
+.daily-focus-progress {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin-bottom: 1rem;
+}
+
+.daily-focus-task-text {
+  background-color: var(--background-secondary);
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-family: var(--font-monospace);
+  margin: 0.5rem 0;
+}
+
+.daily-focus-source,
+.daily-focus-reason {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 0.25rem;
+}
+
+.daily-focus-question {
+  font-style: italic;
+  color: var(--text-accent);
+}
+
+/* Radio options */
+.daily-focus-options {
+  margin: 1rem 0;
+}
+
+.daily-focus-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+}
+
+.daily-focus-option:hover {
+  background-color: var(--background-secondary);
+}
+
+.daily-focus-option input[type="radio"] {
+  margin: 0;
+}
+
+.daily-focus-option label {
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.daily-focus-input-wrapper {
+  flex-basis: 100%;
+  padding-left: 1.5rem;
+  margin-top: 0.25rem;
+}
+
+.daily-focus-context-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.daily-focus-context-input:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+/* Draft review modal styles */
+.daily-focus-draft-modal-container {
+  width: 80vw;
+  max-width: 900px;
+  max-height: 85vh;
+}
+
+.daily-focus-draft-modal-container .modal-content {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.daily-focus-draft-modal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.5rem;
+  padding-top: 0.5rem;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.daily-focus-draft-header {
+  flex-shrink: 0;
+  padding-right: 2rem; /* Space for close button */
+}
+
+.daily-focus-suggestions {
+  background-color: var(--background-secondary);
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.daily-focus-suggestions h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.daily-focus-suggestions ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.daily-focus-suggestions li {
+  margin-bottom: 0.25rem;
+  color: var(--text-muted);
+}
+
+.daily-focus-editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.daily-focus-editor-hint {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 0.5rem;
+  flex-shrink: 0;
+}
+
+.daily-focus-editor {
+  flex: 1;
+  width: 100%;
+  min-height: 300px;
+  padding: 0.75rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  line-height: 1.5;
+  resize: none;
+  box-sizing: border-box;
+}
+
+.daily-focus-editor:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.daily-focus-path-preview {
+  margin-top: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+
+.daily-focus-path-preview code {
+  background-color: var(--background-secondary);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+
+.daily-focus-warning {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--background-modifier-error);
+  border-radius: 4px;
+  color: var(--text-error);
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
+/* Conversational status update modal */
+.daily-focus-status-modal {
+  min-width: 500px;
+}
+
+.daily-focus-task-container {
+  background-color: var(--background-secondary);
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.daily-focus-task-meta {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin-top: 0.5rem;
+}
+
+.daily-focus-question-heading {
+  color: var(--text-accent);
+  font-size: 1.1em;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.daily-focus-answer-container {
+  margin-bottom: 1rem;
+}
+
+.daily-focus-answer-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 1em;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.daily-focus-answer-input:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.daily-focus-answer-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Quick action buttons */
+.daily-focus-quick-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.daily-focus-quick-label {
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.daily-focus-quick-button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.daily-focus-quick-button:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}
+
+/* Advanced section (collapsed) */
+.daily-focus-advanced {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+}
+
+.daily-focus-advanced summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.daily-focus-advanced summary:hover {
+  color: var(--text-normal);
+}
+
+.daily-focus-categories {
+  margin-top: 0.75rem;
+}
+
+.daily-focus-category-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.daily-focus-category-option label {
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+/* Focus prompt modal */
+.daily-focus-prompt-hint {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 1rem;
+}
+
+/* Focus prompt modal container */
+.daily-focus-focus-prompt-container {
+  width: 600px;
+  max-width: 90vw;
+}
+
+.daily-focus-focus-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 1em;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.daily-focus-focus-input:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.daily-focus-focus-input::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Check-in modal styles */
+.daily-focus-checkin-container {
+  width: 600px;
+  max-width: 90vw;
+}
+
+.daily-focus-checkin-subtitle {
+  color: var(--text-muted);
+  margin-top: -0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.daily-focus-checkin-section {
+  margin-bottom: 1.5rem;
+}
+
+.daily-focus-checkin-section h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+.daily-focus-section-hint {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  margin-bottom: 0.75rem;
+}
+
+.daily-focus-checkin-tasks {
+  background-color: var(--background-secondary);
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.daily-focus-checkin-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.daily-focus-checkin-task:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.daily-focus-checkin-task input[type="checkbox"] {
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
+.daily-focus-checkin-task label {
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.daily-focus-checkin-task-text {
+  color: var(--text-normal);
+}
+
+.daily-focus-checkin-task-section {
+  color: var(--text-muted);
+  font-size: 0.8em;
+}
+
+.daily-focus-checkin-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 1em;
+  resize: vertical;
+}
+
+.daily-focus-checkin-textarea:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.daily-focus-checkin-textarea::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.daily-focus-empty-state {
+  color: var(--text-muted);
+  font-style: italic;
+}

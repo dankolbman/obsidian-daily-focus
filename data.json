@@ -1,0 +1,17 @@
+{
+  "dailyFolder": "daily",
+  "meetingsFolder": "meetings",
+  "notificationTime": "10:00",
+  "lookbackDays": 9,
+  "llmProvider": "cli",
+  "anthropicApiKey": "",
+  "model": "claude-sonnet-4-20250514",
+  "cliPath": "/Users/dan.kolbman/.nvm/versions/node/v20.5.1/bin/claude",
+  "enableGitHub": true,
+  "githubRepo": "ZiplineTeam/FlightSystems",
+  "ghCliPath": "gh",
+  "enableJira": false,
+  "jiraProjectKey": "FSW",
+  "jiraBaseUrl": "https://zipline.atlassian.net",
+  "jiraCliPath": "jira"
+}

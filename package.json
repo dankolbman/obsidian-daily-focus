@@ -1,0 +1,44 @@
+{
+  "name": "daily-focus-plugin",
+  "version": "1.0.0",
+  "description": "AI-powered daily planning assistant for Obsidian",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
+    "lint": "eslint 'src/**/*.ts'",
+    "format": "prettier --write 'src/**/*.ts'",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "productivity",
+    "daily-planning",
+    "llm"
+  ],
+  "author": "Dan Kolbman",
+  "license": "MIT",
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "builtin-modules": "^3.3.0",
+    "esbuild": "^0.24.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "obsidian": "latest",
+    "prettier": "^3.7.4",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.50.0"
+  }
+}

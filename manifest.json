@@ -1,0 +1,10 @@
+{
+  "id": "daily-focus",
+  "name": "Daily Focus Assistant",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "AI-powered daily planning assistant that analyzes your agendas and meeting notes to generate focused daily plans.",
+  "author": "Dan Kolbman",
+  "authorUrl": "https://github.com/dankolbman",
+  "isDesktopOnly": false
+}

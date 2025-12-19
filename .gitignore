@@ -1,0 +1,9 @@
+main.js
+node_modules/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+*.tsbuildinfo
