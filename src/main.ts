@@ -8,6 +8,7 @@ import { StatusUpdateModal } from "./modals/status-update-modal";
 import { DraftReviewModal } from "./modals/draft-review-modal";
 import { CheckinModal } from "./modals/checkin-modal";
 import { EODCheckinModal } from "./modals/eod-checkin-modal";
+import { CheckinSelectorModal } from "./modals/checkin-selector-modal";
 import {
   mergeDraftWithResolutions,
   renderStatusTables,
@@ -66,11 +67,19 @@ export default class DailyFocusPlugin extends Plugin {
     });
 
     // Add ribbon icon
-    this.addRibbonIcon("target", "Generate Daily Focus", async () => {
-      await this.generateDailyFocus();
+    this.addRibbonIcon("target", "Daily Focus: Select Check-in", async () => {
+      await this.showCheckinSelector();
     });
 
     // Add command
+    this.addCommand({
+      id: "select-checkin",
+      name: "Select Check-in Type",
+      callback: async () => {
+        await this.showCheckinSelector();
+      },
+    });
+
     this.addCommand({
       id: "generate-daily-focus",
       name: "Generate Daily Focus",
@@ -320,6 +329,28 @@ export default class DailyFocusPlugin extends Plugin {
    */
   testNotification(): void {
     this.sendNotification("Daily Focus - Test", "If you see this, notifications are working! 🎉");
+  }
+
+  /**
+   * Show the check-in selector modal.
+   */
+  async showCheckinSelector() {
+    const modal = new CheckinSelectorModal(this.app);
+    const result = await modal.prompt();
+
+    if (!result) return;
+
+    switch (result) {
+      case "morning":
+        await this.generateDailyFocus();
+        break;
+      case "midday":
+        await this.runCheckin();
+        break;
+      case "eod":
+        await this.runEODCheckin();
+        break;
+    }
   }
 
   /**

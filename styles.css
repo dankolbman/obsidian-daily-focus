@@ -536,3 +536,45 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* Selector modal styles */
+.daily-focus-selector-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.daily-focus-selector-option {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.daily-focus-selector-option:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.daily-focus-selector-option-info {
+  flex: 1;
+}
+
+.daily-focus-selector-option-title {
+  font-weight: 600;
+  font-size: 1.1em;
+  color: var(--text-normal);
+  margin-bottom: 0.25rem;
+}
+
+.daily-focus-selector-option-description {
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
